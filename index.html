@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLBB Draft Analyzer</title>
+    <style>
+        body { 
+            background: #121212; 
+            color: #fff; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            padding: 20px; 
+            max-width: 600px; 
+            margin: 0 auto;
+        }
+        h3 {
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+        input, select { 
+            width: 100%; 
+            padding: 12px; 
+            margin-bottom: 12px; 
+            background: #222; 
+            color: #fff; 
+            border: 1px solid #444; 
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 15px; 
+        }
+        .hero { 
+            padding: 15px; 
+            background: #1e1e1e; 
+            margin-bottom: 10px; 
+            border-left: 4px solid #00ff88; 
+            border-radius: 4px;
+        }
+        .hero strong {
+            font-size: 1.1em;
+        }
+        .info-text {
+            color: #aaa;
+            margin-top: 5px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <select id="lane" onchange="run()">
+        <option value="Any">Any Lane (Flex Pick)</option>
+        <option value="Exp">Exp Lane</option>
+        <option value="Mid">Mid Lane</option>
+        <option value="Gold">Gold Lane</option>
+        <option value="Roam">Roam</option>
+        <option value="Jungle">Jungle</option>
+    </select>
+    
+    <div class="grid">
+        <div>
+            <h3>Enemy Draft</h3>
+            <input class="enemy" placeholder="Enemy Pick 1" oninput="run()">
+            <input class="enemy" placeholder="Enemy Pick 2" oninput="run()">
+            <input class="enemy" placeholder="Enemy Pick 3" oninput="run()">
+            <input class="enemy" placeholder="Enemy Pick 4" oninput="run()">
+            <input class="enemy" placeholder="Enemy Pick 5" oninput="run()">
+        </div>
+    </div>
+    
+    <h3>Best Options</h3>
+    <div id="out"></div>
+
+    <script>
+        const heroes = [
+            { name: "Minotaur", roles: ["Roam"], safety: 9, counters: ["guinevere", "aldous"], weak: ["diggie", "karrie", "valir"] },
+            { name: "Zetian", roles: ["Mid"], safety: 7, counters: ["vexana", "pharsa"], weak: ["kadita", "chou"] },
+            { name: "Masha", roles: ["Exp", "Roam"], safety: 6, counters: ["atlas", "gloo", "eudora"], weak: ["aldous", "mathilda", "estes"] },
+            { name: "Gusion", roles: ["Jungle", "Mid"], safety: 6, counters: ["layla", "hanabi", "nana"], weak: ["lolita", "khufra", "ruby"] },
+            { name: "Kagura", roles: ["Mid"], safety: 8, counters: ["odette", "aurora", "kadita"], weak: ["hayabusa", "ling", "saber"] },
+            { name: "Sun", roles: ["Exp", "Jungle"], safety: 7, counters: ["aldous", "natan"], weak: ["paquito", "ruby", "esmeralda"] },
+            { name: "Cyclops", roles: ["Mid", "Jungle"], safety: 7, counters: ["fanny", "ling", "chou"], weak: ["lancelot", "gusion", "harley"] },
+            { name: "Alpha", roles: ["Exp", "Jungle"], safety: 8, counters: ["lukas", "chou", "yin"], weak: ["valir", "freya", "wanwan"] },
+            { name: "Lapu-Lapu", roles: ["Exp"], safety: 8, counters: ["chou", "yu zhong", "yin"], weak: ["esmeralda", "benedetta", "paquito"] },
+            { name: "Leomord", roles: ["Jungle", "Exp"], safety: 7, counters: ["layla", "hanabi", "lesley"], weak: ["baxia", "khufra", "tigreal"] },
+            { name: "Alucard", roles: ["Jungle", "Exp"], safety: 5, counters: ["hanabi", "layla", "miya"], weak: ["baxia", "khufra", "esmeralda"] },
+            { name: "Baxia", roles: ["Roam", "Jungle"], safety: 8, counters: ["yu zhong", "alice", "esmeralda"], weak: ["karrie", "lunox", "valir"] },
+            { name: "Lunox", roles: ["Mid", "Jungle"], safety: 8, counters: ["baxia", "uranus", "esmeralda"], weak: ["hayabusa", "ling", "chou"] },
+            { name: "Eudora", roles: ["Mid"], safety: 6, counters: ["marcel", "fanny", "ling"], weak: ["atlas", "masha", "gloo"] },
+            { name: "Kaja", roles: ["Roam", "Exp"], safety: 8, counters: ["fanny", "ling", "hayabusa"], weak: ["valir", "diggie", "kagura"] },
+            { name: "Paquito", roles: ["Exp", "Jungle"], safety: 9, counters: ["x.borg", "karrie", "aldous"], weak: ["esmeralda", "saber", "khufra"] },
+            { name: "Hirara", roles: ["Jungle", "Mid"], safety: 7, counters: ["thamuz", "aldous", "karina"], weak: ["saber", "eudora", "belerick"] },
+            { name: "Brody", roles: ["Gold"], safety: 8, counters: ["claude", "wanwan", "miya"], weak: ["natalia", "hayabusa", "ling"] },
+            { name: "Helcurt", roles: ["Jungle"], safety: 7, counters: ["fanny", "ling", "pharsa"], weak: ["baxia", "hylos", "ruby"] },
+            { name: "Moskov", roles: ["Gold"], safety: 7, counters: ["karina", "saber", "ruby"], weak: ["baxia", "lolita", "belerick"] },
+            { name: "Miya", roles: ["Gold"], safety: 5, counters: ["belerick", "hanabi", "layla"], weak: ["chou", "hayabusa", "saber"] },
+            { name: "Balmond", roles: ["Exp", "Jungle"], safety: 8, counters: ["paquito", "chou", "yin"], weak: ["valir", "karrie", "dyrroth"] },
+            { name: "Saber", roles: ["Jungle", "Roam"], safety: 8, counters: ["marcel", "hirara", "fanny"], weak: ["argus", "baxia", "tigreal"] },
+            { name: "Alice", roles: ["Mid", "Exp"], safety: 7, counters: ["phoveus", "gloo", "aldous"], weak: ["baxia", "valir", "karrie"] },
+            { name: "Nana", roles: ["Mid"], safety: 8, counters: ["gloo", "aldous", "yin"], weak: ["hayabusa", "ling", "lancelot"] },
+            { name: "Tigreal", roles: ["Roam"], safety: 8, counters: ["aldous", "dyrroth"], weak: ["valir", "diggie", "karrie"] },
+            { name: "Karina", roles: ["Jungle"], safety: 7, counters: ["layla", "hanabi", "lesley"], weak: ["hirara", "ruby", "x.borg"] },
+            { name: "Franco", roles: ["Roam"], safety: 8, counters: ["fanny", "ling", "chou"], weak: ["tigreal", "diggie", "johnson"] },
+            { name: "Bane", roles: ["Exp", "Jungle"], safety: 7, counters: ["sun", "aldous", "zilong"], weak: ["chou", "paquito", "benedetta"] },
+            { name: "Clint", roles: ["Gold"], safety: 8, counters: ["wanwan", "claude", "moskov"], weak: ["brody", "popol and kupa", "beatrix"] },
+            { name: "Rafaela", roles: ["Roam"], safety: 9, counters: ["natalia", "balmond", "alice"], weak: ["diggie", "estes", "ixia"] },
+            { name: "Layla", roles: ["Gold"], safety: 4, counters: ["hanabi", "miya"], weak: ["hayabusa", "chou", "ling"] },
+            { name: "Lolita", roles: ["Roam"], safety: 9, counters: ["chang'e", "wanwan", "gusion"], weak: ["tigreal", "franco", "khufra"] },
+            { name: "Hayabusa", roles: ["Jungle"], safety: 8, counters: ["nana", "layla", "lesley"], weak: ["saber", "chou", "khufra"] },
+            { name: "Freya", roles: ["Exp", "Jungle"], safety: 7, counters: ["chou", "yin", "zilong"], weak: ["esmeralda", "valir", "baxia"] },
+            { name: "Gord", roles: ["Mid"], safety: 6, counters: ["yve", "pharsa", "odette"], weak: ["ling", "fanny", "lancelot"] },
+            { name: "Chou", roles: ["Exp", "Roam"], safety: 9, counters: ["hayabusa", "fanny", "ling"], weak: ["paquito", "barats", "ruby"] },
+            { name: "Aurora", roles: ["Mid"], safety: 7, counters: ["fanny", "ling", "chou"], weak: ["kagura", "lancelot", "chou"] },
+            { name: "Vexana", roles: ["Mid"], safety: 8, counters: ["gloo", "sun", "zhask"], weak: ["kadita", "lancelot", "hayabusa"] },
+            { name: "Roger", roles: ["Jungle", "Gold"], safety: 8, counters: ["lesley", "layla", "hanabi"], weak: ["khufra", "baxia", "franco"] },
+            { name: "Argus", roles: ["Exp", "Gold"], safety: 7, counters: ["saber", "yin", "chou"], weak: ["valir", "akari", "franco"] },
+            { name: "Odette", roles: ["Mid"], safety: 6, counters: ["hanabi", "miya", "layla"], weak: ["kadita", "chou", "saber"] },
+            { name: "Lancelot", roles: ["Jungle"], safety: 8, counters: ["odette", "gord", "nana"], weak: ["khufra", "phoveus", "ruby"] },
+            { name: "Hylos", roles: ["Roam", "Jungle"], safety: 8, counters: ["ling", "fanny", "hayabusa"], weak: ["valir", "karrie", "baxia"] },
+            { name: "Lesley", roles: ["Gold"], safety: 7, counters: ["belerick", "aldous", "karrie"], weak: ["hayabusa", "harley", "chou"] },
+            { name: "Angela", roles: ["Roam", "Mid"], safety: 9, counters: ["marcel", "leomord", "ling"], weak: ["chou", "saber", "khufra"] },
+            { name: "Valir", roles: ["Mid", "Roam"], safety: 9, counters: ["tigreal", "hylos", "balmond"], weak: ["ling", "fanny", "lancelot"] },
+            { name: "Martis", roles: ["Jungle", "Exp"], safety: 9, counters: ["chou", "tigreal", "khufra"], weak: ["valir", "freya", "argus"] },
+            { name: "Hanabi", roles: ["Gold"], safety: 6, counters: ["lolita", "carmilla"], weak: ["yu zhong", "marcel", "lesley"] },
+            { name: "Chang'e", roles: ["Mid"], safety: 7, counters: ["tigreal", "baxia", "hylos"], weak: ["lolita", "ling", "fanny"] },
+            { name: "Selena", roles: ["Mid", "Roam"], safety: 7, counters: ["hanabi", "layla", "pharsa"], weak: ["khufra", "chou", "diggie"] },
+            { name: "Aldous", roles: ["Exp", "Jungle"], safety: 6, counters: ["masha", "belerick"], weak: ["valir", "chou", "esmeralda"] },
+            { name: "Vale", roles: ["Mid"], safety: 8, counters: ["belerick", "tigreal", "hanabi"], weak: ["lancelot", "hayabusa", "ling"] },
+            { name: "Hanzo", roles: ["Jungle"], safety: 6, counters: ["hirara", "layla", "hanabi"], weak: ["natalia", "ling", "aldous"] },
+            { name: "Belerick", roles: ["Roam", "Exp"], safety: 8, counters: ["claude", "moskov", "miya"], weak: ["lesley", "x.borg", "valir"] },
+            { name: "Kimmy", roles: ["Gold", "Jungle"], safety: 7, counters: ["baxia", "tigreal", "hylos"], weak: ["lolita", "ling", "lancelot"] },
+            { name: "Thamuz", roles: ["Exp", "Jungle"], safety: 8, counters: ["chou", "ruby", "yin"], weak: ["baxia", "valir", "dyrroth"] },
+            { name: "Minsitthar", roles: ["Exp", "Roam"], safety: 8, counters: ["harith", "chou", "ling"], weak: ["valir", "pharsa", "yve"] },
+            { name: "Kadita", roles: ["Mid", "Roam"], safety: 8, counters: ["odette", "pharsa", "yve"], weak: ["lancelot", "chou", "khufra"] },
+            { name: "Faramis", roles: ["Mid", "Roam"], safety: 9, counters: ["gloo", "vexana", "yin"], weak: ["valir", "chou", "kadita"] },
+            { name: "Badang", roles: ["Exp"], safety: 7, counters: ["chou", "yin", "aldous"], weak: ["esmeralda", "khufra", "valir"] },
+            { name: "Khufra", roles: ["Roam"], safety: 9, counters: ["fanny", "ling", "lancelot"], weak: ["valir", "diggie", "franco"] },
+            { name: "Granger", roles: ["Jungle", "Gold"], safety: 8, counters: ["rafaela", "layla", "hanabi"], weak: ["khufra", "chou", "ling"] },
+            { name: "Guinevere", roles: ["Exp", "Jungle"], safety: 8, counters: ["granger", "hanabi", "layla"], weak: ["minotaur", "helcurt", "ruby"] },
+            { name: "Esmeralda", roles: ["Exp", "Mid"], safety: 8, counters: ["paquito", "badang", "phoveus"], weak: ["baxia", "valir", "karrie"] },
+            { name: "Terizla", roles: ["Exp"], safety: 9, counters: ["chou", "paquito", "yin"], weak: ["valir", "karrie", "lunox"] },
+            { name: "X.Borg", roles: ["Exp", "Jungle"], safety: 8, counters: ["belerick", "aldous", "chou"], weak: ["paquito", "esmeralda", "kimmy"] },
+            { name: "Ling", roles: ["Jungle"], safety: 8, counters: ["hanabi", "layla", "gord"], weak: ["khufra", "ruby", "saber"] },
+            { name: "Dyrroth", roles: ["Exp", "Jungle"], safety: 8, counters: ["tigreal", "thamuz", "balmond"], weak: ["chou", "valir", "guinevere"] },
+            { name: "Silvanna", roles: ["Exp", "Jungle"], safety: 7, counters: ["chou", "yin", "hanabi"], weak: ["diggie", "valir", "kadita"] },
+            { name: "Cici", roles: ["Exp"], safety: 8, counters: ["belerick", "tigreal"], weak: ["masha", "chou"] },
+            { name: "Suyou", roles: ["Exp", "Jungle"], safety: 8, counters: ["hirara", "yin"], weak: ["chou", "khufra"] },
+            { name: "Lukas", roles: ["Exp", "Jungle"], safety: 8, counters: ["ling", "fanny"], weak: ["alpha", "zhuxin"] },
+            { name: "Kalea", roles: ["Roam", "Mid"], safety: 7, counters: ["tigreal", "atlas"], weak: ["chou", "saber"] },
+            { name: "Obsidia", roles: ["Gold"], safety: 7, counters: ["tigreal", "atlas"], weak: ["belerick", "baxia"] },
+            { name: "Sora", roles: ["Exp"], safety: 7, counters: ["layla", "hanabi"], weak: ["chou", "valir"] },
+            { name: "Marcel", roles: ["Roam", "Mid"], safety: 8, counters: ["atlas", "hanabi", "yve"], weak: ["saber", "angela", "floryn"] },
+            { name: "Floryn", roles: ["Roam"], safety: 8, counters: ["marcel", "rafaela"], weak: ["baxia", "ling", "chou"] },
+            { name: "Yin", roles: ["Exp", "Jungle"], safety: 7, counters: ["hanabi", "layla", "nana"], weak: ["argus", "valir", "chou"] },
+            { name: "Julian", roles: ["Jungle", "Mid"], safety: 8, counters: ["hanabi", "layla"], weak: ["chou", "saber", "khufra"] },
+            { name: "Fredrinn", roles: ["Jungle", "Exp"], safety: 9, counters: ["lancelot", "hayabusa", "ling"], weak: ["valir", "karrie", "baxia"] },
+            { name: "Novaria", roles: ["Mid"], safety: 8, counters: ["yve", "pharsa", "xavier"], weak: ["ling", "hayabusa", "fanny"] },
+            { name: "Arlott", roles: ["Exp", "Roam"], safety: 8, counters: ["chou", "paquito", "yin"], weak: ["valir", "khufra", "masha"] },
+            { name: "Ixia", roles: ["Gold"], safety: 7, counters: ["rafaela", "estes", "floryn"], weak: ["ling", "hayabusa", "lancelot"] },
+            { name: "Nolan", roles: ["Jungle"], safety: 8, counters: ["hanabi", "layla", "lesley"], weak: ["khufra", "ruby", "phoveus"] },
+            { name: "Cecilion", roles: ["Mid"], safety: 8, counters: ["gloo", "belerick", "hylos"], weak: ["ling", "hayabusa", "chou"] },
+            { name: "Carmilla", roles: ["Roam", "Jungle"], safety: 8, counters: ["hanabi", "estes", "rafaela"], weak: ["valir", "diggie", "karrie"] },
+            { name: "Yu Zhong", roles: ["Exp"], safety: 9, counters: ["layla", "hanabi", "esmeralda"], weak: ["baxia", "valir", "chou"] },
+            { name: "Benedetta", roles: ["Exp", "Jungle"], safety: 8, counters: ["lapu-lapu", "chou", "bane"], weak: ["khufra", "masha", "phoveus"] },
+            { name: "Yve", roles: ["Mid"], safety: 8, counters: ["gloo", "tigreal", "atlas"], weak: ["kadita", "marcel", "chou"] },
+            { name: "Phoveus", roles: ["Exp"], safety: 8, counters: ["wanwan", "ling", "harith"], weak: ["esmeralda", "valir", "lunox"] },
+            { name: "Aulus", roles: ["Exp", "Jungle"], safety: 8, counters: ["sun", "aldous", "zilong"], weak: ["valir", "chou", "paquito"] },
+            { name: "Aamon", roles: ["Jungle"], safety: 7, counters: ["hanabi", "layla", "lesley"], weak: ["ruby", "saber", "khufra"] },
+            { name: "Valentina", roles: ["Mid"], safety: 9, counters: ["yu zhong", "tigreal", "atlas"], weak: ["kadita", "chou", "saber"] }
+        ];
+        
+        function run() {
+            const lane = document.getElementById('lane').value;
+            const enemies = Array.from(document.querySelectorAll('.enemy'))
+                                 .map(i => i.value.trim().toLowerCase())
+                                 .filter(v => v);
+            
+            let valid = lane === "Any" ? heroes : heroes.filter(h => h.roles.includes(lane));
+            
+            let scored = valid.map(h => {
+                let s = enemies.length < 2 ? h.safety : 0; 
+                let info = enemies.length < 2 ? "Solid blind pick (low enemy data). " : "";
+                
+                enemies.forEach(e => {
+                    if(h.counters.includes(e)) { s += 2; info += `Counters ${e.charAt(0).toUpperCase() + e.slice(1)}. `; }
+                    if(h.weak.includes(e)) { s -= 2; info += `Weak to ${e.charAt(0).toUpperCase() + e.slice(1)}. `; }
+                });
+                return { ...h, s, info: info.trim() || "Neutral matchup." };
+            }).sort((a, b) => b.s - a.s);
+            
+            document.getElementById('out').innerHTML = scored.slice(0, 5).map(h => 
+                `<div class="hero">
+                    <strong>${h.name}</strong> (${h.s} pts)<br>
+                    <span class="info-text">${h.info}</span>
+                </div>`
+            ).join('');
+        }
+        
+        // Run initially to populate the blind pick list
+        run();
+    </script>
+</body>
+</html>

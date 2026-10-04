@@ -86,7 +86,30 @@
     <div id="out"></div>
 
     <script>
-        // Note the "synergy" array added to early heroes. Add it to others as needed.
+        // 1. Populate the hidden datalist with ALL MLBB heroes for the autocomplete
+        const allHeroes = [
+            "Aamon", "Akai", "Aldous", "Alice", "Alpha", "Alucard", "Angela", "Argus", "Arlott", "Atlas", "Aulus", "Aurora", 
+            "Badang", "Balmond", "Bane", "Barats", "Baxia", "Beatrix", "Belerick", "Benedetta", "Brody", "Bruno", 
+            "Carmilla", "Cecilion", "Chang'e", "Chip", "Chou", "Cici", "Claude", "Clint", "Cyclops", 
+            "Diggie", "Dyrroth", "Edith", "Esmeralda", "Estes", "Eudora", "Fanny", "Faramis", "Floryn", "Franco", "Freya", 
+            "Gatotkaca", "Gloo", "Gord", "Granger", "Grock", "Guinevere", "Gusion", "Hanabi", "Hanzo", "Harith", "Harley", "Hayabusa", "Helcurt", "Hilda", "Hirara", "Hylos", 
+            "Irithel", "Ixia", "Jawhead", "Johnson", "Joy", "Julian", "Kadita", "Kagura", "Kaja", "Kalea", "Karina", "Karrie", "Khaleed", "Khufra", "Kimmy", 
+            "Lancelot", "Lapu-Lapu", "Layla", "Leomord", "Lesley", "Ling", "Lolita", "Lukas", "Lunox", "Luo Yi", "Lylia", 
+            "Marcel", "Martis", "Masha", "Mathilda", "Melissa", "Minotaur", "Minsitthar", "Miya", "Moskov", 
+            "Nana", "Natalia", "Natan", "Nolan", "Novaria", "Obsidia", "Odette", "Paquito", "Pharsa", "Phoveus", "Popol and Kupa", 
+            "Rafaela", "Roger", "Ruby", "Saber", "Selena", "Silvanna", "Sora", "Sun", "Suyou", 
+            "Terizla", "Thamuz", "Tigreal", "Uranus", "Vale", "Valentina", "Valir", "Vexana", 
+            "Wanwan", "X.Borg", "Xavier", "Yin", "Yu Zhong", "Yve", "Zetian", "Zhask", "Zhuxin", "Zilong"
+        ];
+
+        const datalist = document.getElementById('heroList');
+        allHeroes.forEach(name => {
+            let option = document.createElement('option');
+            option.value = name;
+            datalist.appendChild(option);
+        });
+
+        // 2. Your specific 97-hero roster database
         const heroes = [
             { name: "Minotaur", roles: ["Roam"], safety: 9, counters: ["guinevere", "aldous"], weak: ["diggie", "karrie", "valir"], synergy: ["claude", "ixia", "odette"] },
             { name: "Zetian", roles: ["Mid"], safety: 7, counters: ["vexana", "pharsa"], weak: ["kadita", "chou"] },
@@ -183,16 +206,8 @@
             { name: "Aamon", roles: ["Jungle"], safety: 7, counters: ["hanabi", "layla", "lesley"], weak: ["ruby", "saber", "khufra"] },
             { name: "Valentina", roles: ["Mid"], safety: 9, counters: ["yu zhong", "tigreal", "atlas"], weak: ["kadita", "chou", "saber"] }
         ];
-        
-        // 1. Populate the hidden datalist for autocomplete
-        const datalist = document.getElementById('heroList');
-        heroes.forEach(h => {
-            let option = document.createElement('option');
-            option.value = h.name;
-            datalist.appendChild(option);
-        });
 
-        // 2. Main scoring logic
+        // 3. Main Scoring Logic
         function run() {
             const lane = document.getElementById('lane').value;
             
@@ -205,47 +220,15 @@
                                  .map(i => i.value.trim().toLowerCase())
                                  .filter(v => v);
             
-            // Filter by lane
-            let valid = lane === "Any" ? heroes : heroes.filter(h => h.roles.includes(lane));
+            // Combine all drafted heroes to prevent duplicate recommendations
+            const pickedHeroes = [...enemies, ...allies];
+            
+            // Filter by lane AND remove already picked heroes
+            let valid = heroes.filter(h => {
+                const isCorrectLane = lane === "Any" || h.roles.includes(lane);
+                const isNotPicked = !pickedHeroes.includes(h.name.toLowerCase());
+                return isCorrectLane && isNotPicked;
+            });
             
             let scored = valid.map(h => {
-                let s = enemies.length < 2 ? h.safety : 0; 
-                let infoHtml = enemies.length < 2 ? "<span class='info-text info-neutral'>Solid blind pick (low enemy data).</span>" : "";
-                
-                // Add points for enemies
-                enemies.forEach(e => {
-                    if(h.counters.includes(e)) { 
-                        s += 2; 
-                        infoHtml += `<span class='info-text info-counter'>+ Counters ${e.charAt(0).toUpperCase() + e.slice(1)}.</span>`; 
-                    }
-                    if(h.weak.includes(e)) { 
-                        s -= 2; 
-                        infoHtml += `<span class='info-text info-weak'>- Weak to ${e.charAt(0).toUpperCase() + e.slice(1)}.</span>`; 
-                    }
-                });
-
-                // Add points for allies (Synergy)
-                allies.forEach(a => {
-                    if(h.synergy && h.synergy.includes(a)) {
-                        s += 1;
-                        infoHtml += `<span class='info-text info-synergy'>★ Synergizes with ${a.charAt(0).toUpperCase() + a.slice(1)}.</span>`;
-                    }
-                });
-
-                return { ...h, s, info: infoHtml || "<span class='info-text info-neutral'>Neutral matchup.</span>" };
-            }).sort((a, b) => b.s - a.s);
-            
-            // Output top 5 recommendations
-            document.getElementById('out').innerHTML = scored.slice(0, 5).map(h => 
-                `<div class="hero">
-                    <strong>${h.name}</strong> (${h.s} pts)<br>
-                    ${h.info}
-                </div>`
-            ).join('');
-        }
-        
-        run();
-    </script>
-</body>
-</html>
-
+                let s = en

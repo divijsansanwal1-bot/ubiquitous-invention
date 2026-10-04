@@ -13,13 +13,25 @@
             max-width: 900px; 
             margin: 0 auto;
         }
-        h3 { margin-bottom: 10px; font-size: 1.1em; }
+        h2 { color: #00ff88; margin-top: 0; }
+        h3 { margin-bottom: 8px; font-size: 1.1em; }
         
-        .input-wrapper {
-            position: relative;
+        select.lane-select { 
+            width: 100%; 
+            padding: 14px; 
+            background: #222; 
+            color: #fff; 
+            border: 2px solid #00bcd4; 
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .slot-wrapper {
             margin-bottom: 12px;
         }
-        input, select { 
+
+        input.hero-input { 
             width: 100%; 
             padding: 14px; 
             background: #222; 
@@ -27,71 +39,77 @@
             border: 1px solid #444; 
             border-radius: 6px;
             box-sizing: border-box;
-            font-size: 16px; /* Prevents auto-zoom on mobile */
-            margin: 0;
-        }
-        select { margin-bottom: 20px; }
-        
-        /* Dropdown Suggestion Box */
-        .sug {
-            position: absolute;
-            z-index: 100;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: #2a2a2a;
-            border-radius: 0 0 6px 6px;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.8);
-        }
-        .sug div {
-            padding: 14px;
-            border-bottom: 1px solid #333;
-            color: #00bcd4;
-            font-weight: bold;
             font-size: 16px;
+        }
+        input.hero-input:focus { border-color: #00bcd4; outline: none; }
+
+        /* Tappable Hero Suggestion Pills */
+        .sug-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .sug-pill {
+            background: #00bcd4;
+            color: #000;
+            font-weight: bold;
+            padding: 8px 14px;
+            border-radius: 20px;
+            border: none;
+            font-size: 14px;
             cursor: pointer;
         }
-        .sug div:last-child { border-bottom: none; }
-        .sug div:active { background: #444; }
+        .sug-pill:active { background: #fff; }
 
         .draft-grid { 
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
             gap: 20px; 
-            margin-bottom: 20px; 
+            margin-bottom: 25px; 
         }
 
         .analyze-btn {
             width: 100%;
-            padding: 16px;
-            background: #00bcd4;
-            color: #fff;
-            font-size: 18px;
-            font-weight: bold;
+            padding: 18px;
+            background: #00ff88;
+            color: #121212;
+            font-size: 20px;
+            font-weight: 800;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,255,136,0.3);
         }
-        .analyze-btn:active { background: #008ba3; }
-        
-        .hero { 
-            padding: 15px; 
+        .analyze-btn:active { background: #00cc6a; transform: translateY(2px); }
+
+        /* Results Card Area */
+        #results-section {
+            padding-top: 10px;
+            border-top: 1px solid #333;
+        }
+        .hero-card { 
+            padding: 16px; 
             background: #1e1e1e; 
-            margin-bottom: 10px; 
-            border-left: 4px solid #00ff88; 
-            border-radius: 4px;
+            margin-bottom: 12px; 
+            border-left: 5px solid #00ff88; 
+            border-radius: 6px;
         }
-        .hero strong { font-size: 1.15em; }
-        .info-text { margin-top: 5px; display: block; font-size: 0.9em; }
+        .hero-card strong { font-size: 1.2em; color: #fff; }
+        .score-badge { float: right; background: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #00ff88; }
+        .info-text { margin-top: 6px; display: block; font-size: 0.95em; }
+        .info-counter { color: #00ff88; font-weight: 600; }
+        .info-weak { color: #ff5252; }
+        .info-synergy { color: #00bcd4; font-weight: 600; }
         .info-neutral { color: #888; }
-        .info-counter { color: #4caf50; }
-        .info-weak { color: #f44336; }
-        .info-synergy { color: #00bcd4; }
     </style>
 </head>
 <body>
-    <select id="lane">
+
+    <h2>MLBB Draft Engine</h2>
+    <label style="font-size: 0.9em; color: #aaa;">Your Lane Assignment:</label>
+    <select id="lane" class="lane-select">
         <option value="Any">Any Lane (Flex Pick)</option>
         <option value="Exp">Exp Lane</option>
         <option value="Mid">Mid Lane</option>
@@ -101,59 +119,65 @@
     </select>
 
     <div class="draft-grid">
+        <!-- ALLIES -->
         <div>
-            <h3 style="color: #00bcd4;">Ally Draft (Team)</h3>
-            <div class="input-wrapper">
-                <input class="ally" placeholder="Teammate 1" onkeyup="search(this)" onfocus="search(this)">
-                <div class="sug"></div>
+            <h3 style="color: #00bcd4;">Ally Draft (Your Team)</h3>
+            <div class="slot-wrapper">
+                <input class="hero-input ally" placeholder="Type Ally 1 (e.g. Minotaur)..." oninput="showSuggestions(this)">
+                <div class="sug-container"></div>
             </div>
-            <div class="input-wrapper">
-                <input class="ally" placeholder="Teammate 2" onkeyup="search(this)" onfocus="search(this)">
-                <div class="sug"></div>
+            <div class="slot-wrapper">
+                <input class="hero-input ally" placeholder="Type Ally 2..." oninput="showSuggestions(this)">
+                <div class="sug-container"></div>
             </div>
-            <div class="input-wrapper">
-                <input class="ally" placeholder="Teammate 3" onkeyup="search(this)" onfocus="search(this)">
-                <div class="sug"></div>
+            <div class="slot-wrapper">
+                <input class="hero-input ally" placeholder="Type Ally 3..." oninput="showSuggestions(this)">
+                <div class="sug-container"></div>
             </div>
-            <div class="input-wrapper">
-                <input class="ally" placeholder="Teammate 4" onkeyup="search(this)" onfocus="search(this)">
-                <div class="sug"></div>
+            <div class="slot-wrapper">
+                <input class="hero-input ally" placeholder="Type Ally 4..." oninput="showSuggestions(this)">
+                <div class="sug-container"></div>
             </div>
         </div>
+
+        <!-- ENEMIES -->
         <div>
-            <h3 style="color: #f44336;">Enemy Draft</h3>
-            <div class="input-wrapper">
-                <input class="enemy" placeholder="Enemy 1" onkeyup="search(this)" onfocus="search(this)">
-                <div class="sug"></div>
+            <h3 style="color: #ff5252;">Enemy Draft</h3>
+            <div class="slot-wrapper">
+                <input class="hero-input enemy" placeholder="Type Enemy 1 (e.g. Layla)..." oninput="showSuggestions(this)">
+                <div class="sug-container"></div>
             </div>
-            <div class="input-wrapper">
-                <input class="enemy" placeholder="Enemy 2" onkeyup="search(this)" onfocus="search(this)">
-                <div class="sug"></div>
+            <div class="slot-wrapper">
+                <input class="hero-input enemy" placeholder="Type Enemy 2..." oninput="showSuggestions(this)">
+                <div class="sug-container"></div>
             </div>
-            <div class="input-wrapper">
-                <input class="enemy" placeholder="Enemy 3" onkeyup="search(this)" onfocus="search(this)">
-                <div class="sug"></div>
+            <div class="slot-wrapper">
+                <input class="hero-input enemy" placeholder="Type Enemy 3..." oninput="showSuggestions(this)">
+                <div class="sug-container"></div>
             </div>
-            <div class="input-wrapper">
-                <input class="enemy" placeholder="Enemy 4" onkeyup="search(this)" onfocus="search(this)">
-                <div class="sug"></div>
+            <div class="slot-wrapper">
+                <input class="hero-input enemy" placeholder="Type Enemy 4..." oninput="showSuggestions(this)">
+                <div class="sug-container"></div>
             </div>
-            <div class="input-wrapper">
-                <input class="enemy" placeholder="Enemy 5" onkeyup="search(this)" onfocus="search(this)">
-                <div class="sug"></div>
+            <div class="slot-wrapper">
+                <input class="hero-input enemy" placeholder="Type Enemy 5..." oninput="showSuggestions(this)">
+                <div class="sug-container"></div>
             </div>
         </div>
     </div>
-    
-    <button class="analyze-btn" onclick="analyzeDraft()">Analyze Draft</button>
 
-    <h3 style="color: #00ff88;">Top Recommendations</h3>
-    <div id="out">
-        <span style="color: #888; font-size: 0.9em;">Enter draft picks and tap Analyze Draft to see results.</span>
+    <button class="analyze-btn" onclick="analyzeDraft()">⚡ Analyze Draft</button>
+
+    <!-- RESULTS (Will automatically scroll here) -->
+    <div id="results-section">
+        <h3 style="color: #00ff88;">Recommended Picks</h3>
+        <div id="out">
+            <span style="color: #777;">Fill in any draft slots above and tap "Analyze Draft".</span>
+        </div>
     </div>
 
     <script>
-        // 1. Global list for dropdown
+        // 1. Complete global hero library
         const allHeroes = [
             "Aamon", "Akai", "Aldous", "Alice", "Alpha", "Alucard", "Angela", "Argus", "Arlott", "Atlas", "Aulus", "Aurora", 
             "Badang", "Balmond", "Bane", "Barats", "Baxia", "Beatrix", "Belerick", "Benedetta", "Brody", "Bruno", 
@@ -169,35 +193,31 @@
             "Wanwan", "X.Borg", "Xavier", "Yin", "Yu Zhong", "Yve", "Zetian", "Zhask", "Zhuxin", "Zilong"
         ];
 
-        // 2. Simplest possible dropdown search
-        function search(inp) {
-            let val = inp.value.toLowerCase();
-            let sugDiv = inp.nextElementSibling;
-            sugDiv.innerHTML = ""; 
-            
-            if (!val) return;
-            
-            let matches = allHeroes.filter(h => h.toLowerCase().includes(val)).slice(0, 4);
-            
-            matches.forEach(m => {
-                let d = document.createElement("div");
-                d.innerHTML = m;
-                d.onclick = function() {
-                    inp.value = m;
-                    sugDiv.innerHTML = ""; 
+        // 2. Reliable suggestion pill generator for mobile
+        function showSuggestions(inputEl) {
+            const query = inputEl.value.trim().toLowerCase();
+            const container = inputEl.parentElement.querySelector('.sug-container');
+            container.innerHTML = "";
+
+            if (!query) return;
+
+            // Find top 4 matches
+            const matches = allHeroes.filter(h => h.toLowerCase().includes(query)).slice(0, 4);
+
+            matches.forEach(name => {
+                const pill = document.createElement("button");
+                pill.type = "button";
+                pill.className = "sug-pill";
+                pill.textContent = name;
+                pill.onclick = function() {
+                    inputEl.value = name;
+                    container.innerHTML = "";
                 };
-                sugDiv.appendChild(d);
+                container.appendChild(pill);
             });
         }
 
-        // Close dropdowns if tapping elsewhere
-        document.addEventListener('click', function(e) {
-            if(!e.target.classList.contains('ally') && !e.target.classList.contains('enemy')) {
-                document.querySelectorAll('.sug').forEach(d => d.innerHTML = "");
-            }
-        });
-
-        // 3. 97-hero roster database
+        // 3. Complete database restricted to your 97-hero inventory
         const heroes = [
             { name: "Minotaur", roles: ["Roam"], safety: 9, counters: ["guinevere", "aldous"], weak: ["diggie", "karrie", "valir"], synergy: ["claude", "ixia", "odette"] },
             { name: "Zetian", roles: ["Mid"], safety: 7, counters: ["vexana", "pharsa"], weak: ["kadita", "chou"] },
@@ -274,11 +294,4 @@
             { name: "Lukas", roles: ["Exp", "Jungle"], safety: 8, counters: ["ling", "fanny"], weak: ["alpha", "zhuxin"] },
             { name: "Kalea", roles: ["Roam", "Mid"], safety: 7, counters: ["tigreal", "atlas"], weak: ["chou", "saber"] },
             { name: "Obsidia", roles: ["Gold"], safety: 7, counters: ["tigreal", "atlas"], weak: ["belerick", "baxia"] },
-            { name: "Sora", roles: ["Exp"], safety: 7, counters: ["layla", "hanabi"], weak: ["chou", "valir"] },
-            { name: "Marcel", roles: ["Roam", "Mid"], safety: 8, counters: ["atlas", "hanabi", "yve"], weak: ["saber", "angela", "floryn"] },
-            { name: "Floryn", roles: ["Roam"], safety: 8, counters: ["marcel", "rafaela"], weak: ["baxia", "ling", "chou"] },
-            { name: "Yin", roles: ["Exp", "Jungle"], safety: 7, counters: ["hanabi", "layla", "nana"], weak: ["argus", "valir", "chou"] },
-            { name: "Julian", roles: ["Jungle", "Mid"], safety: 8, counters: ["hanabi", "layla"], weak: ["chou", "saber", "khufra"] },
-            { name: "Fredrinn", roles: ["Jungle", "Exp"], safety: 9, counters: ["lancelot", "hayabusa", "ling"], weak: ["valir", "karrie", "baxia"] },
-            { name: "Novaria", roles: ["Mid"], safety: 8, counters: ["yve", "pharsa", "xavier"], weak: ["ling", "hayabusa", "fanny"] },
-            { name: "Arlott", roles: ["E
+            { name: "Sora", roles: ["Exp"], safety: 7, counters: ["layla", "hanabi"], weak: 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MLBB Draft Analyzer</title>
     <style>
         body { 
@@ -14,18 +14,47 @@
             margin: 0 auto;
         }
         h3 { margin-bottom: 10px; font-size: 1.1em; }
+        
+        /* Custom Autocomplete Styling */
+        .autocomplete-wrapper {
+            position: relative;
+            margin-bottom: 12px;
+        }
         input, select { 
             width: 100%; 
-            padding: 12px; 
-            margin-bottom: 10px; 
+            padding: 14px; 
             background: #222; 
             color: #fff; 
             border: 1px solid #444; 
             border-radius: 6px;
             box-sizing: border-box;
-            font-size: 16px; /* Prevents auto-zoom on iOS */
+            font-size: 16px; /* Prevents auto-zoom on iOS/Android */
+            margin: 0;
         }
+        select { margin-bottom: 12px; }
         
+        .autocomplete-items {
+            position: absolute;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 0 0 6px 6px;
+            box-shadow: 0px 4px 8px rgba(0,0,0,0.6);
+        }
+        .autocomplete-items div {
+            padding: 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+            color: #00bcd4;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .autocomplete-items div:last-child { border-bottom: none; }
+        .autocomplete-items div:active { background-color: #444; }
+
         /* Grid for Allies and Enemies */
         .draft-grid { 
             display: grid; 
@@ -33,7 +62,24 @@
             gap: 20px; 
             margin-bottom: 20px; 
         }
+
+        /* Action Button */
+        .analyze-btn {
+            width: 100%;
+            padding: 16px;
+            background: #00bcd4;
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            transition: background 0.2s;
+        }
+        .analyze-btn:active { background: #008ba3; }
         
+        /* Output Cards */
         .hero { 
             padding: 15px; 
             background: #1e1e1e; 
@@ -42,8 +88,6 @@
             border-radius: 4px;
         }
         .hero strong { font-size: 1.15em; }
-        
-        /* Color coded reasoning */
         .info-text { margin-top: 5px; display: block; font-size: 0.9em; }
         .info-neutral { color: #888; }
         .info-counter { color: #4caf50; }
@@ -52,7 +96,7 @@
     </style>
 </head>
 <body>
-    <select id="lane" onchange="run()">
+    <select id="lane">
         <option value="Any">Any Lane (Flex Pick)</option>
         <option value="Exp">Exp Lane</option>
         <option value="Mid">Mid Lane</option>
@@ -60,33 +104,34 @@
         <option value="Roam">Roam</option>
         <option value="Jungle">Jungle</option>
     </select>
-    
-    <!-- Hidden list for autocomplete -->
-    <datalist id="heroList"></datalist>
 
     <div class="draft-grid">
         <div>
             <h3 style="color: #00bcd4;">Ally Draft (Team)</h3>
-            <input class="ally" list="heroList" placeholder="Teammate 1" oninput="run()">
-            <input class="ally" list="heroList" placeholder="Teammate 2" oninput="run()">
-            <input class="ally" list="heroList" placeholder="Teammate 3" oninput="run()">
-            <input class="ally" list="heroList" placeholder="Teammate 4" oninput="run()">
+            <input class="ally autocomplete-input" placeholder="Teammate 1">
+            <input class="ally autocomplete-input" placeholder="Teammate 2">
+            <input class="ally autocomplete-input" placeholder="Teammate 3">
+            <input class="ally autocomplete-input" placeholder="Teammate 4">
         </div>
         <div>
             <h3 style="color: #f44336;">Enemy Draft</h3>
-            <input class="enemy" list="heroList" placeholder="Enemy 1" oninput="run()">
-            <input class="enemy" list="heroList" placeholder="Enemy 2" oninput="run()">
-            <input class="enemy" list="heroList" placeholder="Enemy 3" oninput="run()">
-            <input class="enemy" list="heroList" placeholder="Enemy 4" oninput="run()">
-            <input class="enemy" list="heroList" placeholder="Enemy 5" oninput="run()">
+            <input class="enemy autocomplete-input" placeholder="Enemy 1">
+            <input class="enemy autocomplete-input" placeholder="Enemy 2">
+            <input class="enemy autocomplete-input" placeholder="Enemy 3">
+            <input class="enemy autocomplete-input" placeholder="Enemy 4">
+            <input class="enemy autocomplete-input" placeholder="Enemy 5">
         </div>
     </div>
     
+    <button class="analyze-btn" onclick="analyzeDraft()">Analyze Draft</button>
+
     <h3 style="color: #00ff88;">Top Recommendations</h3>
-    <div id="out"></div>
+    <div id="out">
+        <span style="color: #888; font-size: 0.9em;">Enter draft picks and tap Analyze Draft to see results.</span>
+    </div>
 
     <script>
-        // 1. Populate the hidden datalist with ALL MLBB heroes for the autocomplete
+        // 1. Global hero list for mobile autocomplete
         const allHeroes = [
             "Aamon", "Akai", "Aldous", "Alice", "Alpha", "Alucard", "Angela", "Argus", "Arlott", "Atlas", "Aulus", "Aurora", 
             "Badang", "Balmond", "Bane", "Barats", "Baxia", "Beatrix", "Belerick", "Benedetta", "Brody", "Bruno", 
@@ -102,14 +147,48 @@
             "Wanwan", "X.Borg", "Xavier", "Yin", "Yu Zhong", "Yve", "Zetian", "Zhask", "Zhuxin", "Zilong"
         ];
 
-        const datalist = document.getElementById('heroList');
-        allHeroes.forEach(name => {
-            let option = document.createElement('option');
-            option.value = name;
-            datalist.appendChild(option);
+        // 2. Custom Mobile Autocomplete Setup
+        document.querySelectorAll('.autocomplete-input').forEach(inp => {
+            let wrapper = document.createElement('div');
+            wrapper.className = 'autocomplete-wrapper';
+            inp.parentNode.insertBefore(wrapper, inp);
+            wrapper.appendChild(inp);
+
+            inp.addEventListener('input', function() {
+                let val = this.value;
+                closeAllLists();
+                
+                if (!val) return;
+                
+                let list = document.createElement('div');
+                list.setAttribute('class', 'autocomplete-items');
+                this.parentNode.appendChild(list);
+                
+                let matches = allHeroes.filter(h => h.toLowerCase().includes(val.toLowerCase()));
+                
+                matches.slice(0, 4).forEach(match => {
+                    let item = document.createElement('div');
+                    item.innerHTML = match;
+                    item.addEventListener('click', function() {
+                        inp.value = match;
+                        closeAllLists();
+                    });
+                    list.appendChild(item);
+                });
+            });
         });
 
-        // 2. Your specific 97-hero roster database
+        function closeAllLists(elmnt) {
+            let items = document.getElementsByClassName("autocomplete-items");
+            for (let i = 0; i < items.length; i++) {
+                if (elmnt != items[i]) {
+                    items[i].parentNode.removeChild(items[i]);
+                }
+            }
+        }
+        document.addEventListener("click", function (e) { closeAllLists(e.target); });
+
+        // 3. Your specific 97-hero roster database
         const heroes = [
             { name: "Minotaur", roles: ["Roam"], safety: 9, counters: ["guinevere", "aldous"], weak: ["diggie", "karrie", "valir"], synergy: ["claude", "ixia", "odette"] },
             { name: "Zetian", roles: ["Mid"], safety: 7, counters: ["vexana", "pharsa"], weak: ["kadita", "chou"] },
@@ -194,41 +273,4 @@
             { name: "Fredrinn", roles: ["Jungle", "Exp"], safety: 9, counters: ["lancelot", "hayabusa", "ling"], weak: ["valir", "karrie", "baxia"] },
             { name: "Novaria", roles: ["Mid"], safety: 8, counters: ["yve", "pharsa", "xavier"], weak: ["ling", "hayabusa", "fanny"] },
             { name: "Arlott", roles: ["Exp", "Roam"], safety: 8, counters: ["chou", "paquito", "yin"], weak: ["valir", "khufra", "masha"] },
-            { name: "Ixia", roles: ["Gold"], safety: 7, counters: ["rafaela", "estes", "floryn"], weak: ["ling", "hayabusa", "lancelot"], synergy: ["minotaur", "tigreal"] },
-            { name: "Nolan", roles: ["Jungle"], safety: 8, counters: ["hanabi", "layla", "lesley"], weak: ["khufra", "ruby", "phoveus"] },
-            { name: "Cecilion", roles: ["Mid"], safety: 8, counters: ["gloo", "belerick", "hylos"], weak: ["ling", "hayabusa", "chou"], synergy: ["carmilla"] },
-            { name: "Carmilla", roles: ["Roam", "Jungle"], safety: 8, counters: ["hanabi", "estes", "rafaela"], weak: ["valir", "diggie", "karrie"], synergy: ["cecilion"] },
-            { name: "Yu Zhong", roles: ["Exp"], safety: 9, counters: ["layla", "hanabi", "esmeralda"], weak: ["baxia", "valir", "chou"] },
-            { name: "Benedetta", roles: ["Exp", "Jungle"], safety: 8, counters: ["lapu-lapu", "chou", "bane"], weak: ["khufra", "masha", "phoveus"] },
-            { name: "Yve", roles: ["Mid"], safety: 8, counters: ["gloo", "tigreal", "atlas"], weak: ["kadita", "marcel", "chou"] },
-            { name: "Phoveus", roles: ["Exp"], safety: 8, counters: ["wanwan", "ling", "harith"], weak: ["esmeralda", "valir", "lunox"] },
-            { name: "Aulus", roles: ["Exp", "Jungle"], safety: 8, counters: ["sun", "aldous", "zilong"], weak: ["valir", "chou", "paquito"] },
-            { name: "Aamon", roles: ["Jungle"], safety: 7, counters: ["hanabi", "layla", "lesley"], weak: ["ruby", "saber", "khufra"] },
-            { name: "Valentina", roles: ["Mid"], safety: 9, counters: ["yu zhong", "tigreal", "atlas"], weak: ["kadita", "chou", "saber"] }
-        ];
-
-        // 3. Main Scoring Logic
-        function run() {
-            const lane = document.getElementById('lane').value;
-            
-            // Extract typed names and format them to lowercase
-            const enemies = Array.from(document.querySelectorAll('.enemy'))
-                                 .map(i => i.value.trim().toLowerCase())
-                                 .filter(v => v);
-                                 
-            const allies = Array.from(document.querySelectorAll('.ally'))
-                                 .map(i => i.value.trim().toLowerCase())
-                                 .filter(v => v);
-            
-            // Combine all drafted heroes to prevent duplicate recommendations
-            const pickedHeroes = [...enemies, ...allies];
-            
-            // Filter by lane AND remove already picked heroes
-            let valid = heroes.filter(h => {
-                const isCorrectLane = lane === "Any" || h.roles.includes(lane);
-                const isNotPicked = !pickedHeroes.includes(h.name.toLowerCase());
-                return isCorrectLane && isNotPicked;
-            });
-            
-            let scored = valid.map(h => {
-                let s = en
+            { name: "Ixia", roles: ["Gold"], safety: 7, counters: ["rafaela", "estes", "floryn"], weak: ["ling", "hayabusa", "la
